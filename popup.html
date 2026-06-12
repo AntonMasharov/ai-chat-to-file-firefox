@@ -1,0 +1,209 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Chat to PDF</title>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      width: 280px;
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      background: #1a1a2e;
+      color: #e8e8f0;
+    }
+
+    .header {
+      background: linear-gradient(135deg, #16213e, #0f3460);
+      padding: 16px 18px 14px;
+      border-bottom: 1px solid #2a2a4a;
+    }
+
+    .header h1 {
+      font-size: 15px;
+      font-weight: 700;
+      letter-spacing: 0.3px;
+      color: #fff;
+    }
+
+    .header .subtitle {
+      font-size: 11px;
+      color: #8888aa;
+      margin-top: 3px;
+    }
+
+    .site-badge {
+      display: inline-block;
+      margin-top: 8px;
+      padding: 3px 8px;
+      border-radius: 10px;
+      font-size: 11px;
+      font-weight: 600;
+      background: #0f3460;
+      color: #7eb8ff;
+      border: 1px solid #2a4a7a;
+    }
+
+    .site-badge.unsupported {
+      background: #2a1a1a;
+      color: #ff7e7e;
+      border-color: #4a2a2a;
+    }
+
+    .body {
+      padding: 14px 16px;
+    }
+
+    .option-group {
+      margin-bottom: 14px;
+    }
+
+    .option-group label.group-label {
+      display: block;
+      font-size: 11px;
+      font-weight: 600;
+      color: #7878aa;
+      text-transform: uppercase;
+      letter-spacing: 0.6px;
+      margin-bottom: 7px;
+    }
+
+    .radio-option {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      padding: 6px 0;
+      cursor: pointer;
+      font-size: 13px;
+      color: #c0c0d8;
+    }
+
+    .radio-option input[type="radio"] {
+      accent-color: #7eb8ff;
+      width: 14px;
+      height: 14px;
+      cursor: pointer;
+    }
+
+    .checkbox-option {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      padding: 5px 0;
+      cursor: pointer;
+      font-size: 13px;
+      color: #c0c0d8;
+    }
+
+    .checkbox-option input[type="checkbox"] {
+      accent-color: #7eb8ff;
+      width: 14px;
+      height: 14px;
+      cursor: pointer;
+    }
+
+    /* Dim PDF-only options when TXT is selected */
+    .pdf-only { transition: opacity 0.15s; }
+    .pdf-only.dimmed { opacity: 0.35; pointer-events: none; }
+
+    .divider {
+      height: 1px;
+      background: #2a2a4a;
+      margin: 10px 0 14px;
+    }
+
+    .btn-row {
+      display: flex;
+      gap: 8px;
+    }
+
+    .export-btn {
+      flex: 1;
+      padding: 10px 6px;
+      color: #fff;
+      font-size: 13px;
+      font-weight: 700;
+      border: none;
+      border-radius: 8px;
+      cursor: pointer;
+      letter-spacing: 0.3px;
+      transition: opacity 0.15s;
+    }
+
+    .export-btn:hover:not(:disabled) { opacity: 0.88; }
+
+    .export-btn:disabled {
+      background: #2a2a4a !important;
+      color: #5a5a7a;
+      cursor: not-allowed;
+    }
+
+    #exportPdf { background: linear-gradient(135deg, #4a7fd4, #2a5fa8); }
+    #exportTxt { background: linear-gradient(135deg, #3a9a6a, #1a7a4a); }
+
+    .status {
+      margin-top: 10px;
+      font-size: 12px;
+      min-height: 18px;
+      text-align: center;
+      color: #7eb8ff;
+    }
+
+    .status.error   { color: #ff7e7e; }
+    .status.success { color: #7effa8; }
+
+    .footer {
+      padding: 8px 16px 12px;
+      font-size: 10px;
+      color: #44445a;
+      text-align: center;
+    }
+  </style>
+</head>
+<body>
+
+<div class="header">
+  <h1>💬 Chat to PDF</h1>
+  <div class="subtitle">Export your AI conversation</div>
+  <span class="site-badge" id="siteBadge">Detecting site…</span>
+</div>
+
+<div class="body">
+  <div class="option-group pdf-only" id="themeGroup">
+    <label class="group-label">Theme (PDF only)</label>
+    <label class="radio-option">
+      <input type="radio" name="theme" value="light" checked> Light (best for printing)
+    </label>
+    <label class="radio-option">
+      <input type="radio" name="theme" value="dark"> Dark
+    </label>
+  </div>
+
+  <div class="divider"></div>
+
+  <div class="option-group">
+    <label class="group-label">Options</label>
+    <label class="checkbox-option">
+      <input type="checkbox" id="includeTimestamp" checked> Include export timestamp
+    </label>
+    <label class="checkbox-option">
+      <input type="checkbox" id="includeUrl" checked> Include page URL
+    </label>
+    <label class="checkbox-option pdf-only" id="codeHighlightWrap">
+      <input type="checkbox" id="codeHighlight" checked> Highlight code blocks (PDF)
+    </label>
+  </div>
+
+  <div class="btn-row">
+    <button class="export-btn" id="exportPdf">Export PDF</button>
+    <button class="export-btn" id="exportTxt">Export TXT</button>
+  </div>
+  <div class="status" id="status"></div>
+</div>
+
+<div class="footer">All processing is local — no data leaves your browser</div>
+
+<script src="popup.js"></script>
+</body>
+</html>
