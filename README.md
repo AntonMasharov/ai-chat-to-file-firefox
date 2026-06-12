@@ -1,6 +1,6 @@
 # Chat to PDF — Firefox Extension
 
-Export your AI chat conversations to PDF, entirely locally — no data leaves your browser.
+Export your AI chat conversations to PDF/txt, entirely locally — no data leaves your browser.
 
 **Supported sites:** Claude, ChatGPT, Gemini
 
