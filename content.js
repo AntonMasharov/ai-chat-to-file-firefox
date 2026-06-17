@@ -311,30 +311,124 @@ ${prismJS}
     if (includeUrl)       lines.push("Source:   " + location.href);
     lines.push("");
 
+    function nodeToText(node) {
+      if (node.nodeType === Node.TEXT_NODE) {
+        return node.textContent;
+      }
+      if (node.nodeType !== Node.ELEMENT_NODE) {
+        return "";
+      }
+
+      const tagName = node.tagName.toLowerCase();
+
+      // 1. Handle math formatting (KaTeX / MathJax)
+      if (node.classList.contains("katex")) {
+        const annotation = node.querySelector('annotation[encoding="application/x-tex"]');
+        if (annotation) {
+          const isDisplay = node.querySelector(".katex-display") || node.classList.contains("katex-display");
+          const delimiter = isDisplay ? "$$" : "$";
+          const tex = annotation.textContent.trim();
+          return ` ${delimiter}${tex}${delimiter} `;
+        }
+      }
+
+      // 2. Handle code block
+      if (tagName === "pre") {
+        const code = node.querySelector("code") || node;
+        return `\n\`\`\`\n${code.textContent.trim()}\n\`\`\`\n\n`;
+      }
+
+      // 3. Recursively process children
+      let childrenContent = "";
+      for (const child of node.childNodes) {
+        childrenContent += nodeToText(child);
+      }
+
+      // 4. Format based on tag
+      switch (tagName) {
+        case "p":
+          return childrenContent.trim() ? `${childrenContent.trim()}\n\n` : "";
+        case "br":
+          return "\n";
+        case "h1":
+          return `\n# ${childrenContent.trim()}\n\n`;
+        case "h2":
+          return `\n## ${childrenContent.trim()}\n\n`;
+        case "h3":
+          return `\n### ${childrenContent.trim()}\n\n`;
+        case "h4":
+        case "h5":
+        case "h6":
+          return `\n#### ${childrenContent.trim()}\n\n`;
+        case "li": {
+          const parent = node.parentNode;
+          if (parent && parent.tagName.toLowerCase() === "ol") {
+            const siblings = Array.from(parent.children).filter(child => child.tagName.toLowerCase() === "li");
+            const index = siblings.indexOf(node) + 1;
+            return `${index}. ${childrenContent.trim()}\n`;
+          }
+          return `* ${childrenContent.trim()}\n`;
+        }
+        case "ul":
+        case "ol":
+          return `\n${childrenContent}\n`;
+        case "blockquote": {
+          const lines = childrenContent.trim().split("\n");
+          const quoted = lines.map(line => `> ${line}`).join("\n");
+          return `\n${quoted}\n\n`;
+        }
+        case "strong":
+        case "b":
+          return childrenContent.trim() ? `**${childrenContent.trim()}**` : "";
+        case "em":
+        case "i":
+          return childrenContent.trim() ? `*${childrenContent.trim()}*` : "";
+        case "code":
+          if (node.parentNode && node.parentNode.tagName.toLowerCase() === "pre") {
+            return childrenContent;
+          }
+          return childrenContent.trim() ? `\`${childrenContent.trim()}\`` : "";
+        case "a": {
+          const href = node.getAttribute("href");
+          const text = childrenContent.trim();
+          if (!text) return "";
+          return href ? `[${text}](${href})` : text;
+        }
+        case "input":
+          if (node.getAttribute("type") === "checkbox") {
+            const checked = node.checked || node.hasAttribute("checked") || node.classList.contains("checked");
+            return checked ? "[x] " : "[ ] ";
+          }
+          return "";
+        case "th":
+        case "td":
+          return `| ${childrenContent.trim()} `;
+        case "tr":
+          return `${childrenContent}|\n`;
+        case "table":
+          return `\n${childrenContent}\n`;
+        case "div":
+          return childrenContent.trim() ? `${childrenContent.trim()}\n` : "";
+        default:
+          return childrenContent;
+      }
+    }
+
     messages.forEach((msg, i) => {
       const label = msg.role === "human" ? "You" : aiLabel;
       lines.push("-".repeat(40));
       lines.push(label + ":");
       lines.push("-".repeat(40));
-      // Strip HTML tags to get plain text
+
       const tmp = document.createElement("div");
       tmp.innerHTML = msg.content;
-      // Preserve code blocks with a simple marker
-      tmp.querySelectorAll("pre").forEach(pre => {
-        pre.textContent = "\n```\n" + pre.textContent.trim() + "\n```\n";
-      });
-      // Replace KaTeX math with raw LaTeX source for cleaner text output
-      tmp.querySelectorAll(".katex").forEach(katexEl => {
-        if (!katexEl.parentNode) return;
-        const annotation = katexEl.querySelector('annotation[encoding="application/x-tex"]');
-        if (annotation) {
-          const isDisplay = katexEl.querySelector(".katex-display") || katexEl.classList.contains("katex-display");
-          const delimiter = isDisplay ? "$$" : "$";
-          const tex = annotation.textContent.trim();
-          katexEl.replaceWith(document.createTextNode(` ${delimiter}${tex}${delimiter} `));
-        }
-      });
-      const text = (tmp.innerText || tmp.textContent || "").trim();
+
+      // Convert HTML structure to Markdown/formatted text
+      let text = nodeToText(tmp).trim();
+
+      // Clean up three or more consecutive newlines down to two newlines
+      text = text.replace(/\n{3,}/g, "\n\n");
+
       lines.push(text);
       lines.push("");
     });
