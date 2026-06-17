@@ -35,13 +35,21 @@ browser.runtime.onMessage.addListener((msg, sender) => {
 
     return browser.downloads
       .download({ url: objectUrl, filename, saveAs: true })
-      .then(() => {
-        // 3. ОБЯЗАТЕЛЬНО освобождаем память после успешного скачивания
-        URL.revokeObjectURL(objectUrl);
+      .then((downloadId) => {
+        // 3. Освобождаем память ТОЛЬКО после завершения скачивания или ошибки/отмены
+        const listener = (delta) => {
+          if (delta.id === downloadId && delta.state) {
+            if (delta.state.current === "complete" || delta.state.current === "interrupted") {
+              URL.revokeObjectURL(objectUrl);
+              browser.downloads.onChanged.removeListener(listener);
+            }
+          }
+        };
+        browser.downloads.onChanged.addListener(listener);
         return { ok: true };
       })
       .catch((err) => {
-        // И в случае ошибки тоже освобождаем память
+        // И в случае ошибки при старте загрузки освобождаем память
         URL.revokeObjectURL(objectUrl);
         return { ok: false, error: err.message };
       });
