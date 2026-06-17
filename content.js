@@ -156,7 +156,11 @@
       '[class*="feedback"], [class*="copy-btn"], [class*="regenerate"], ' +
       'svg, [class*="icon"], [aria-hidden="true"], [class*="actions-bar"],' +
       '[data-testid*="action"], [data-testid*="button"], [class*="thumb"]'
-    ).forEach(n => n.remove());
+    ).forEach(n => {
+      // Do not remove elements that are part of KaTeX or MathJax formulas
+      if (n.closest('.katex, .MathJax, mjx-container')) return;
+      n.remove();
+    });
     return clone.innerHTML;
   }
 
@@ -208,12 +212,15 @@
          <script src="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/plugins/autoloader/prism-autoloader.min.js"><\/script>`
       : "";
 
+    const katexCSS = `<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/KaTeX/0.16.9/katex.min.css">`;
+
     return `<!DOCTYPE html>
 <html lang="en">
 <head>
   <meta charset="UTF-8">
   <title>${escapeHtml(title)}</title>
   ${prismCSS}
+  ${katexCSS}
   <style>
     *, *::before, *::after { box-sizing: border-box; }
     body {
@@ -250,7 +257,7 @@
     .message-content th { background: ${codeBg}; font-weight: 600; }
     .message-content a { color: ${brand.accent}; word-break: break-word; }
     .message-content img { max-width: 100%; height: auto; border-radius: 4px; }
-    .message-content button, .message-content [role="button"], .message-content svg, .message-content [aria-hidden="true"] { display: none !important; }
+    .message-content button, .message-content [role="button"], .message-content svg:not(.katex *):not(mjx-container *), .message-content [aria-hidden="true"]:not(.katex *):not(mjx-container *) { display: none !important; }
     @media print {
       body { background: white !important; color: #111 !important; }
       .page-wrap { padding: 0; }
@@ -312,6 +319,17 @@ ${prismJS}
       // Preserve code blocks with a simple marker
       tmp.querySelectorAll("pre").forEach(pre => {
         pre.textContent = "\n```\n" + pre.textContent.trim() + "\n```\n";
+      });
+      // Replace KaTeX math with raw LaTeX source for cleaner text output
+      tmp.querySelectorAll(".katex").forEach(katexEl => {
+        if (!katexEl.parentNode) return;
+        const annotation = katexEl.querySelector('annotation[encoding="application/x-tex"]');
+        if (annotation) {
+          const isDisplay = katexEl.querySelector(".katex-display") || katexEl.classList.contains("katex-display");
+          const delimiter = isDisplay ? "$$" : "$";
+          const tex = annotation.textContent.trim();
+          katexEl.replaceWith(document.createTextNode(` ${delimiter}${tex}${delimiter} `));
+        }
       });
       const text = (tmp.innerText || tmp.textContent || "").trim();
       lines.push(text);
