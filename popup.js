@@ -15,6 +15,7 @@ async function init() {
   const badge     = document.getElementById("siteBadge");
   const exportPdf = document.getElementById("exportPdf");
   const exportTxt = document.getElementById("exportTxt");
+  const exportMd  = document.getElementById("exportMd");
 
   try {
     const url  = new URL(tab.url);
@@ -27,11 +28,13 @@ async function init() {
     badge.classList.remove("unsupported");
     exportPdf.disabled = false;
     exportTxt.disabled = false;
+    exportMd.disabled = false;
   } else {
     badge.textContent = "Not a supported chat site";
     badge.classList.add("unsupported");
     exportPdf.disabled = true;
     exportTxt.disabled = true;
+    exportMd.disabled = true;
     setStatus("Open Claude, ChatGPT, or Gemini first.", "error");
   }
 }
@@ -56,9 +59,10 @@ function getOptions(format) {
 async function doExport(format) {
   if (!currentTab) return;
 
-  setStatus(format === "pdf" ? "Extracting conversation…" : "Building text file…");
+  setStatus(format === "pdf" ? "Extracting conversation…" : (format === "md" ? "Building markdown file…" : "Building text file…"));
   document.getElementById("exportPdf").disabled = true;
   document.getElementById("exportTxt").disabled = true;
+  document.getElementById("exportMd").disabled = true;
 
   try {
     const response = await browser.tabs.sendMessage(currentTab.id, {
@@ -85,11 +89,11 @@ async function doExport(format) {
       });
 
     } else {
-      // TXT: hand off to background script which has reliable downloads access
+      // TXT or MD: hand off to background script which has reliable downloads access
       setStatus("Downloading…", "success");
       const result = await browser.runtime.sendMessage({
-        action: "downloadTxt",
-        txt:    response.txt,
+        action: format === "txt" ? "downloadTxt" : "downloadMd",
+        txt:    format === "txt" ? response.txt : response.md,
         title:  response.title
       });
       if (result?.ok) {
@@ -108,10 +112,12 @@ async function doExport(format) {
   } finally {
     document.getElementById("exportPdf").disabled = false;
     document.getElementById("exportTxt").disabled = false;
+    document.getElementById("exportMd").disabled = false;
   }
 }
 
 document.getElementById("exportPdf").addEventListener("click", () => doExport("pdf"));
 document.getElementById("exportTxt").addEventListener("click", () => doExport("txt"));
+document.getElementById("exportMd").addEventListener("click", () => doExport("md"));
 
 init();

@@ -1,6 +1,6 @@
 {
   "manifest_version": 2,
-  "name": "AI Chat to pdf, txt",
+  "name": "AI Chat to PDF, TXT, MD",
   "version": "1.0.0",
   "description": "Export AI chat conversations (Claude, ChatGPT, Gemini) to a file",
   "author": "You",
@@ -10,7 +10,7 @@
   },
   "browser_action": {
     "default_icon": "icons/icon48.png",
-    "default_title": "AI Chat to pdf, txt",
+    "default_title": "AI Chat to PDF, TXT, MD",
     "default_popup": "popup.html"
   },
   "content_scripts": [

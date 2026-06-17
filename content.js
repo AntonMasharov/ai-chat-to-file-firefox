@@ -437,6 +437,202 @@ ${prismJS}
     return lines.join("\n");
   }
 
+  // ─── Markdown Builder ──────────────────────────────────────────────────────
+
+  function buildMd(data, options) {
+    const { title, messages } = data;
+    const { includeTimestamp, includeUrl, site } = options;
+
+    const siteLabels = { claude: "Claude", chatgpt: "ChatGPT", gemini: "Gemini" };
+    const aiLabel = siteLabels[site?.toLowerCase()] || "Assistant";
+
+    const lines = [];
+
+    lines.push(`# ${title}`);
+    lines.push("");
+
+    if (includeTimestamp || includeUrl) {
+      if (includeTimestamp) {
+        lines.push(`- **Exported:** ${new Date().toLocaleString()}`);
+      }
+      if (includeUrl) {
+        lines.push(`- **Source:** [${aiLabel} Chat](${location.href})`);
+      }
+      lines.push("");
+    }
+
+    function nodeToMarkdown(node) {
+      if (node.nodeType === Node.TEXT_NODE) {
+        return node.textContent;
+      }
+      if (node.nodeType !== Node.ELEMENT_NODE) {
+        return "";
+      }
+
+      const tagName = node.tagName.toLowerCase();
+
+      // 1. Handle math formatting (KaTeX / MathJax / Math elements)
+      const isMathElement = 
+        node.classList.contains("katex") || 
+        node.classList.contains("MathJax") || 
+        node.classList.contains("math-inline") || 
+        node.classList.contains("math-display") || 
+        node.classList.contains("math") ||
+        node.tagName.toLowerCase() === "mjx-container" || 
+        node.tagName.toLowerCase() === "math";
+
+      if (isMathElement) {
+        let rawTex = "";
+        const annotation = node.querySelector('annotation');
+        if (annotation) {
+          rawTex = annotation.textContent.trim();
+        } else {
+          // Fallback: check attributes on the node itself or search descendants
+          const elWithAttr = node.closest('[data-math], [data-latex], [data-formula]') || 
+                             node.querySelector('[data-math], [data-latex], [data-formula]');
+          if (elWithAttr) {
+            rawTex = (elWithAttr.getAttribute('data-math') || 
+                      elWithAttr.getAttribute('data-latex') || 
+                      elWithAttr.getAttribute('data-formula') || "").trim();
+          }
+        }
+
+        // If we found raw LaTeX source, format it with markdown math delimiters
+        if (rawTex) {
+          const isDisplay = node.querySelector(".katex-display") || 
+                            node.classList.contains("katex-display") || 
+                            node.classList.contains("math-display") || 
+                            node.classList.contains("mjx-display") || 
+                            node.querySelector("[display='block']") || 
+                            node.getAttribute("display") === "block" || 
+                            (node.getAttribute("type") || "").includes("display");
+          const delimiter = isDisplay ? "$$" : "$";
+          
+          // Clean up delimiters if they are already present inside the rawTex
+          let cleanTex = rawTex;
+          if (cleanTex.startsWith("\\[") && cleanTex.endsWith("\\]")) {
+            cleanTex = cleanTex.slice(2, -2).trim();
+          } else if (cleanTex.startsWith("\\(") && cleanTex.endsWith("\\)")) {
+            cleanTex = cleanTex.slice(2, -2).trim();
+          } else if (cleanTex.startsWith("$$") && cleanTex.endsWith("$$")) {
+            cleanTex = cleanTex.slice(2, -2).trim();
+          } else if (cleanTex.startsWith("$") && cleanTex.endsWith("$")) {
+            cleanTex = cleanTex.slice(1, -1).trim();
+          }
+
+          return ` ${delimiter}${cleanTex}${delimiter} `;
+        }
+      }
+
+      // 2. Handle code block
+      if (tagName === "pre") {
+        const code = node.querySelector("code") || node;
+        return `\n\`\`\`\n${code.textContent.trim()}\n\`\`\`\n\n`;
+      }
+
+      // 3. Recursively process children
+      let childrenContent = "";
+      for (const child of node.childNodes) {
+        childrenContent += nodeToMarkdown(child);
+      }
+
+      // 4. Format based on tag
+      switch (tagName) {
+        case "p":
+          return childrenContent.trim() ? `${childrenContent.trim()}\n\n` : "";
+        case "br":
+          return "\n";
+        case "h1":
+          return `\n# ${childrenContent.trim()}\n\n`;
+        case "h2":
+          return `\n## ${childrenContent.trim()}\n\n`;
+        case "h3":
+          return `\n### ${childrenContent.trim()}\n\n`;
+        case "h4":
+        case "h5":
+        case "h6":
+          return `\n#### ${childrenContent.trim()}\n\n`;
+        case "li": {
+          const parent = node.parentNode;
+          if (parent && parent.tagName.toLowerCase() === "ol") {
+            const siblings = Array.from(parent.children).filter(child => child.tagName.toLowerCase() === "li");
+            const index = siblings.indexOf(node) + 1;
+            return `${index}. ${childrenContent.trim()}\n`;
+          }
+          return `* ${childrenContent.trim()}\n`;
+        }
+        case "ul":
+        case "ol":
+          return `\n${childrenContent}\n`;
+        case "blockquote": {
+          const lines = childrenContent.trim().split("\n");
+          const quoted = lines.map(line => `> ${line}`).join("\n");
+          return `\n${quoted}\n\n`;
+        }
+        case "strong":
+        case "b":
+          return childrenContent.trim() ? `**${childrenContent.trim()}**` : "";
+        case "em":
+        case "i":
+          return childrenContent.trim() ? `*${childrenContent.trim()}*` : "";
+        case "code":
+          if (node.parentNode && node.parentNode.tagName.toLowerCase() === "pre") {
+            return childrenContent;
+          }
+          return childrenContent.trim() ? `\`${childrenContent.trim()}\`` : "";
+        case "a": {
+          const href = node.getAttribute("href");
+          const text = childrenContent.trim();
+          if (!text) return "";
+          return href ? `[${text}](${href})` : text;
+        }
+        case "input":
+          if (node.getAttribute("type") === "checkbox") {
+            const checked = node.checked || node.hasAttribute("checked") || node.classList.contains("checked");
+            return checked ? "[x] " : "[ ] ";
+          }
+          return "";
+        case "th":
+        case "td":
+          return `| ${childrenContent.trim()} `;
+        case "tr":
+          return `${childrenContent}|\n`;
+        case "table":
+          return `\n${childrenContent}\n`;
+        case "div":
+          return childrenContent.trim() ? `${childrenContent.trim()}\n` : "";
+        default:
+          return childrenContent;
+      }
+    }
+
+    messages.forEach((msg, i) => {
+      const isHuman = msg.role === "human";
+      const label = isHuman ? "👤 You" : `🤖 ${aiLabel}`;
+      lines.push(`## ${label}`);
+      lines.push("");
+
+      const tmp = document.createElement("div");
+      tmp.innerHTML = msg.content;
+
+      // Convert HTML structure to Markdown
+      let text = nodeToMarkdown(tmp).trim();
+
+      // Clean up three or more consecutive newlines down to two newlines
+      text = text.replace(/\n{3,}/g, "\n\n");
+
+      lines.push(text);
+      lines.push("");
+
+      if (i < messages.length - 1) {
+        lines.push("---");
+        lines.push("");
+      }
+    });
+
+    return lines.join("\n");
+  }
+
   // ─── Message Listener ──────────────────────────────────────────────────────
 
   browser.runtime.onMessage.addListener((msg, _sender, sendResponse) => {
@@ -454,7 +650,13 @@ ${prismJS}
         throw new Error("No chat messages found. Make sure a conversation is open.");
 
       const opts = msg.options;
-      sendResponse({ success: true, html: buildPrintHTML(data, opts), txt: buildTxt(data, opts), title: data.title });
+      sendResponse({
+        success: true,
+        html: buildPrintHTML(data, opts),
+        txt: buildTxt(data, opts),
+        md: buildMd(data, opts),
+        title: data.title
+      });
     } catch (err) {
       sendResponse({ success: false, error: err.message });
     }

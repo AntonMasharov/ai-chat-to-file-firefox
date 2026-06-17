@@ -139,8 +139,13 @@
       cursor: not-allowed;
     }
 
-    #exportPdf { background: linear-gradient(135deg, #4a7fd4, #2a5fa8); }
+    #exportPdf {
+      background: linear-gradient(135deg, #4a7fd4, #2a5fa8);
+      width: 100%;
+      margin-bottom: 8px;
+    }
     #exportTxt { background: linear-gradient(135deg, #3a9a6a, #1a7a4a); }
+    #exportMd { background: linear-gradient(135deg, #a855f7, #7c3aed); }
 
     .status {
       margin-top: 10px;
@@ -195,9 +200,10 @@
     </label>
   </div>
 
+  <button class="export-btn" id="exportPdf">Export PDF</button>
   <div class="btn-row">
-    <button class="export-btn" id="exportPdf">Export PDF</button>
     <button class="export-btn" id="exportTxt">Export TXT</button>
+    <button class="export-btn" id="exportMd">Export MD</button>
   </div>
   <div class="status" id="status"></div>
 </div>
