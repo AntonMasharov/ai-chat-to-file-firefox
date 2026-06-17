@@ -263,6 +263,9 @@
       .page-wrap { padding: 0; }
       .chat-header, .message { border-color: #ddd !important; background: white !important; }
       .message-content pre { background: #f4f4f6 !important; }
+      .katex .katex-mathml { display: none !important; }
+      .katex .katex-html { display: inline-block !important; }
+      .katex-display .katex-html { display: block !important; }
       @page { margin: 1.5cm 1.5cm 2cm; }
     }
   </style>
